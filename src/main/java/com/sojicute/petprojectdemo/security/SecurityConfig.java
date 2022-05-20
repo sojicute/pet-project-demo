@@ -1,16 +1,14 @@
 package com.sojicute.petprojectdemo.security;
 
-import com.sojicute.petprojectdemo.repository.UserRepository;
-import com.sojicute.petprojectdemo.security.jwt.JwtProvider;
+import com.sojicute.petprojectdemo.service.UserDetailsServiceImpl;
 import com.sojicute.petprojectdemo.security.jwt.JwtTokenFilter;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -22,21 +20,12 @@ import static java.lang.String.format;
 @EnableWebSecurity
 public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
-    private UserRepository userRepository;
-
+    @Autowired
     private JwtTokenFilter jwtTokenFilter;
 
+    @Autowired
+    private UserDetailsServiceImpl userDetailsService;
 
-    @Override
-    protected void configure(AuthenticationManagerBuilder auth) throws Exception {
-        auth.userDetailsService(username -> userRepository
-                .findByUsername(username)
-                .orElseThrow(
-                        () -> new UsernameNotFoundException(
-                                format("User: %s, not found", username)
-                        )
-                ));
-    }
 
     @Override
     protected void configure(HttpSecurity http) throws Exception {
@@ -51,6 +40,8 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
         // Set unauthorized requests exception handler
         http = http
+                // Custom implementation user details service
+                .userDetailsService(userDetailsService)
                 .exceptionHandling()
                 .authenticationEntryPoint(
                         (request, response, ex) -> {
@@ -63,7 +54,9 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .and();
 
         // Set permissions on endpoints
-        http.authorizeHttpRequests().anyRequest().authenticated();
+        http.authorizeHttpRequests()
+                .antMatchers("/api/auth/**").permitAll()
+                .anyRequest().authenticated();
 
 
         // Add JWT token filter
@@ -76,9 +69,9 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
         return new BCryptPasswordEncoder();
     }
 
-    @Override
     @Bean
-    public AuthenticationManager authenticationManager() throws Exception {
+    @Override
+    public AuthenticationManager authenticationManagerBean() throws Exception {
         return super.authenticationManagerBean();
     }
 }

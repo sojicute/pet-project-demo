@@ -1,6 +1,6 @@
 package com.sojicute.petprojectdemo.security.jwt;
 
-import com.sojicute.petprojectdemo.repository.UserRepository;
+import com.sojicute.petprojectdemo.service.UserDetailsServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -15,14 +15,16 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.List;
 
 @Component
 public class JwtTokenFilter extends OncePerRequestFilter {
 
-    private final JwtProvider jwtProvider = new JwtProvider();
     @Autowired
-    private UserRepository userRepository;
+    private JwtUtil jwtUtil;
+
+    @Autowired
+    private UserDetailsServiceImpl userDetailsService;
+
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -31,27 +33,25 @@ public class JwtTokenFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         final String header = request.getHeader(HttpHeaders.AUTHORIZATION);
-        if (header.isEmpty() || !header.startsWith("Bearer ")) {
+        if (header == null || !header.startsWith("Bearer ")) {
             chain.doFilter(request, response);
             return;
         }
 
         final String token = header.split(" ")[1].trim();
-        if (!jwtProvider.validate(token)) {
+        if (!jwtUtil.validate(token)) {
             chain.doFilter(request, response);
             return;
         }
 
+        // Extract username
+        String username = jwtUtil.getUsername(token);
 
-        UserDetails userDetails = userRepository
-                .findByUsername(jwtProvider.getUsername(token))
-                .orElse(null);
+        UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
         UsernamePasswordAuthenticationToken
                 authentication = new UsernamePasswordAuthenticationToken(
-                userDetails, null,
-                userDetails == null ?
-                        List.of() : userDetails.getAuthorities()
+                        userDetails.getUsername(), userDetails.getPassword(), userDetails.getAuthorities()
         );
 
         authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));

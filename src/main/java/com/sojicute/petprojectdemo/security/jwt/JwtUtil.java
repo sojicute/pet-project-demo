@@ -5,20 +5,22 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import org.springframework.security.core.userdetails.User;
+import org.springframework.stereotype.Component;
 
 
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Date;
 
-public class JwtProvider {
+@Component
+public class JwtUtil {
 
-    private String jwtSecret = "secret";
+    private final String jwtSecret = "secret";
 
-    public String generateAccessToken(User user) {
+    public String generateAccessToken(String username) {
         Date date = Date.from(LocalDate.now().plusDays(15).atStartOfDay(ZoneId.systemDefault()).toInstant());
         return Jwts.builder()
-                .setSubject(user.getUsername())
+                .setSubject(username)
                 .setExpiration(date)
                 .signWith(SignatureAlgorithm.HS512, jwtSecret)
                 .compact();
@@ -26,7 +28,7 @@ public class JwtProvider {
 
     public boolean validate(String token) {
         try {
-            Jwts.parser().setSigningKey(jwtSecret).parseClaimsJwt(token);
+            Jwts.parser().setSigningKey(jwtSecret).parseClaimsJws(token);
             return true;
         } catch (Exception e) {
             throw new InvalidTokenException("Invalid token" + e.getMessage());
@@ -34,7 +36,7 @@ public class JwtProvider {
     }
 
     public String getUsername(String token) {
-        Claims claims = Jwts.parser().setSigningKey(jwtSecret).parseClaimsJwt(token).getBody();
+        Claims claims = Jwts.parser().setSigningKey(jwtSecret).parseClaimsJws(token).getBody();
         return claims.getSubject();
     }
 }

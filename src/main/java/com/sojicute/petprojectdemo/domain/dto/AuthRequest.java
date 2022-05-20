@@ -1,4 +1,4 @@
-package com.sojicute.petprojectdemo.dto;
+package com.sojicute.petprojectdemo.domain.dto;
 
 import lombok.Data;
 
